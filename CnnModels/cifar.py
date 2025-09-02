@@ -21,7 +21,7 @@ import pdb
 visible_gpus_str = ','.join(str(i) for i in args.gpus)
 os.environ['CUDA_VISIBLE_DEVICES'] = visible_gpus_str
 args.gpus = [i for i in range(len(args.gpus))]
-# usage: --gpus 0,1,2,3
+# usage: --gpus 0 1 2 3
 print("args.gpus: ", args.gpus)
 checkpoint = utils.checkpoint(args)
 now = datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
