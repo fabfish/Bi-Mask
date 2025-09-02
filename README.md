@@ -83,4 +83,10 @@ cd DeiT
 python3 -m torch.distributed.launch --nproc_per_node=4  --use_env main.py --model vit_deit_small_patch16_224 --batch-size 256 --data-path PATH_TO_DATASETS --output_dir PATH_TO_JOB_DIR --resume PATH_TO_CHECKPOINTS --eval
 ```
 
-conda create -n bimask python=3.7 pytorch=1.10.2 torchvision=0.11.3
+conda create -n bimask python=3.7 cudatoolkit=10.2
+
+(如果通过conda装到的可能会是cpu版本的torch，需要通过pip安装)
+
+pip install torch==1.10.2+cu102 torchvision==0.11.3+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
+
+sudo pkill -f "cifar.py"

@@ -21,10 +21,14 @@ import pdb
 visible_gpus_str = ','.join(str(i) for i in args.gpus)
 os.environ['CUDA_VISIBLE_DEVICES'] = visible_gpus_str
 args.gpus = [i for i in range(len(args.gpus))]
+# usage: --gpus 0,1,2,3
+print("args.gpus: ", args.gpus)
 checkpoint = utils.checkpoint(args)
 now = datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
 logger = utils.get_logger(os.path.join(args.job_dir, 'logger-'+now+'.log'))
 device = torch.device(f"cuda:{args.gpus[0]}") if torch.cuda.is_available() else 'cpu'
+
+print("device: ", device)
 
 if args.label_smoothing is None:
     loss_func = CrossEntropyLoss()
