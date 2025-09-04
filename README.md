@@ -83,6 +83,8 @@ cd DeiT
 python3 -m torch.distributed.launch --nproc_per_node=4  --use_env main.py --model vit_deit_small_patch16_224 --batch-size 256 --data-path PATH_TO_DATASETS --output_dir PATH_TO_JOB_DIR --resume PATH_TO_CHECKPOINTS --eval
 ```
 
+v100
+
 conda create -n bimask python=3.7 cudatoolkit=10.2
 
 (如果通过conda装到的可能会是cpu版本的torch，需要通过pip安装)
@@ -90,3 +92,20 @@ conda create -n bimask python=3.7 cudatoolkit=10.2
 pip install torch==1.10.2+cu102 torchvision==0.11.3+cu102 -f https://download.pytorch.org/whl/cu102/torch_stable.html
 
 sudo pkill -f "cifar.py"
+
+a100
+
+conda create -n bimask python=3.7
+
+<!-- pip install torch==1.10.2 torchvision==0.11.3 -->
+
+<!-- pip install torch==1.10.2 torchvision==0.11.3 -f https://download.pytorch.org/whl/cu124/torch_stable.html -->
+
+<!-- conda install pytorch==1.10.2 torchvision==0.11.3 cudatoolkit=11.3 -c pytorch -c conda-forge -->
+pip install torch==1.10.2+cu111 torchvision==0.11.3+cu111 -f https://download.pytorch.org/whl/cu111/torch_stable.html
+
+cd DeiT
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m torch.distributed.launch --nproc_per_node=4  --use_env main.py --model vit_deit_small_patch16_224 --batch-size 256 --data-path /data/datasets/ImageNet1k --output_dir /data/yzy/bimask/deit_imagenet
+
+cd DeiT
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m torch.distributed.launch --nproc_per_node=4  --use_env main.py --model vit_deit_small_patch16_224 --batch-size 256 --data-path /data/datasets/ImageNet1k --output_dir /data/yzy/bimask/deit_imagenet  --eval

@@ -174,7 +174,8 @@ def get_args_parser():
     parser.add_argument('--dist_url', default='env://', help='url used to set up distributed training')
 
     # wanbd
-    parser.add_argument('--wandb_project', default='', type=str)
+    parser.add_argument('--wandb_project', default='bimask', type=str)
+
     parser.add_argument('--wandb_name', default='', type=str)
     parser.add_argument(
     "--k",
@@ -406,7 +407,9 @@ def main(args):
 
     if utils.is_main_process() and args.wandb_project:
         import wandb
-        os.environ["WANDB_API_KEY"] = 'b5f5a502ed02955b69f12852c3a9aee7ada7b889'
+        os.environ["WANDB_API_KEY"] = 'b0905a7c1edbfb53372e1fc0ce0717dfe5477326'
+        args.wandb_name = args.wandb_name if args.wandb_name else f"{args.model}_{args.input_size}_{args.batch_size}_{args.epochs}_{args.data_path.split('/')[-1]}"
+        print(f"wandb name: {args.wandb_name}")
         wandb.init(config=args, project=args.wandb_project, name=args.wandb_name)
         wandb.watch(model, log='all')
 
