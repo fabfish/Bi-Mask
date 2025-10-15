@@ -6,8 +6,12 @@ import json
 from torchvision import datasets, transforms
 from torchvision.datasets.folder import ImageFolder, default_loader
 
+from datasets import load_dataset
+
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 from timm.data import create_transform
+
+import torch
 
 
 class INatDataset(ImageFolder):
@@ -61,8 +65,36 @@ def build_dataset(is_train, args):
         nb_classes = 100
     elif args.data_set == 'IMNET':
         root = os.path.join(args.data_path, 'train' if is_train else 'val')
-        dataset = datasets.ImageFolder(root, transform=transform)
-        nb_classes = 1000
+        # 判断 classic ImageNet 格式
+        if os.path.isdir(root) and len(os.listdir(root)) > 0:
+            dataset = datasets.ImageFolder(root, transform=transform)
+            nb_classes = 1000
+        else:
+            # 尝试用 load_dataset 加载本地或远程 huggingface 格式
+            split = "train" if is_train else "validation"
+            # 判断本地路径是否存在
+            if os.path.exists(args.data_path):
+                # 本地 huggingface repo
+                hf_dataset = load_dataset(args.data_path, split=split)
+            else:
+                # 远程 huggingface hub
+                hf_dataset = load_dataset("imagenet-1k", split=split)
+            hf_dataset = hf_dataset.with_format("torch")
+            class HFDataset(torch.utils.data.Dataset):
+                def __init__(self, hf_dataset, transform):
+                    self.hf_dataset = hf_dataset
+                    self.transform = transform
+                def __len__(self):
+                    return len(self.hf_dataset)
+                def __getitem__(self, idx):
+                    item = self.hf_dataset[idx]
+                    image = item["image"]
+                    label = item["label"]
+                    if self.transform:
+                        image = self.transform(image)
+                    return image, label
+            dataset = HFDataset(hf_dataset, transform)
+            nb_classes = 1000
     elif args.data_set == 'INAT':
         dataset = INatDataset(args.data_path, train=is_train, year=2018,
                               category=args.inat_category, transform=transform)

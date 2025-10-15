@@ -1,13 +1,12 @@
 # Bi-directional Masks for Efficient N:M Sparse Training (ICML 2023) ([Paper Link](https://arxiv.org/abs/2302.06058))
 
-
 ## Requirements
 
 - python 3.7
 - pytorch 1.10.2
 - torchvision 0.11.3
 
-## Training 
+## Training
 
 ### Training models on ImageNet
 
@@ -56,16 +55,17 @@ python cifar.py --arch mobilenetv2 --lr 0.1 --weight_decay 0.001 --data_path PAT
 ```
 
 ## Testing
+
 We provide our trained models and experiment logs at following Table:
 
-|     Model    | Sparse Pattern |    Top1 |         Top5  |   Link |
-| ------------ | --- | ---------------|----------|------ |
-| ResNet-50 |  2:4 | 77.4 | 93.7 |[Google Drive](https://drive.google.com/drive/folders/1LvUQe1TOhEYE9HF4D9YEOF1uyid8JdlX?usp=share_link)|
-| ResNet-50 |  1:4 | 75.6 | 92.7 |[Google Drive](https://drive.google.com/drive/folders/1IVOJFmKIq--hOuZs5fhz2GZT5QY17XCg?usp=share_link)|
-| ResNet-50 |  2:8 | 76.3 | 93.0 |[Google Drive](https://drive.google.com/drive/folders/1nlUf5D1sEV48z1I3H5zZp03GVhI-K9-l?usp=share_link)|
-| ResNet-50 |  4:8 | 77.5 | 93.8 |[Google Drive](https://drive.google.com/drive/folders/1hlWULurqYExy8sImJTXtAcf9CMEiVJoI?usp=share_link)|
-| ResNet-50 | 1:16 | 71.4 | 90.1 |[Google Drive](https://drive.google.com/drive/folders/1LxHqcmN2buPTFuP_QawYre92dx9b8CFe?usp=share_link)|
-| Deit-small|  2:4 | 77.6 | 93.8 |[Google Drive](https://drive.google.com/drive/folders/11auZ08_OgPnebfSF7Fp7ASB7YsNcrjZa?usp=sharing)|
+| Model      | Sparse Pattern | Top1 | Top5 | Link                                                                                                 |
+| ---------- | -------------- | ---- | ---- | ---------------------------------------------------------------------------------------------------- |
+| ResNet-50  | 2:4            | 77.4 | 93.7 | [Google Drive](https://drive.google.com/drive/folders/1LvUQe1TOhEYE9HF4D9YEOF1uyid8JdlX?usp=share_link) |
+| ResNet-50  | 1:4            | 75.6 | 92.7 | [Google Drive](https://drive.google.com/drive/folders/1IVOJFmKIq--hOuZs5fhz2GZT5QY17XCg?usp=share_link) |
+| ResNet-50  | 2:8            | 76.3 | 93.0 | [Google Drive](https://drive.google.com/drive/folders/1nlUf5D1sEV48z1I3H5zZp03GVhI-K9-l?usp=share_link) |
+| ResNet-50  | 4:8            | 77.5 | 93.8 | [Google Drive](https://drive.google.com/drive/folders/1hlWULurqYExy8sImJTXtAcf9CMEiVJoI?usp=share_link) |
+| ResNet-50  | 1:16           | 71.4 | 90.1 | [Google Drive](https://drive.google.com/drive/folders/1LxHqcmN2buPTFuP_QawYre92dx9b8CFe?usp=share_link) |
+| Deit-small | 2:4            | 77.6 | 93.8 | [Google Drive](https://drive.google.com/drive/folders/11auZ08_OgPnebfSF7Fp7ASB7YsNcrjZa?usp=sharing)    |
 
 To test, run:
 
@@ -99,10 +99,23 @@ conda create -n bimask python=3.7
 
 <!-- pip install torch==1.10.2 torchvision==0.11.3 -->
 
+
 <!-- pip install torch==1.10.2 torchvision==0.11.3 -f https://download.pytorch.org/whl/cu124/torch_stable.html -->
 
+
 <!-- conda install pytorch==1.10.2 torchvision==0.11.3 cudatoolkit=11.3 -c pytorch -c conda-forge -->
+
 pip install torch==1.10.2+cu111 torchvision==0.11.3+cu111 -f https://download.pytorch.org/whl/cu111/torch_stable.html
+
+
+hetao
+
+conda create -n bimask python=3.7 cudatoolkit=11.3
+
+pip install torch==1.10.2+cu113 torchvision==0.11.3+cu113 -f https://download.pytorch.org/whl/cu113/torch_stable.html
+
+CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m torch.distributed.launch --nproc_per_node=4  --use_env main.py --model vit_deit_small_patch16_224 --batch-size 256 --data-path /hefhspace/yzy/imagenet-1k --output_dir /hefhspace/yzy/bimask/deit_imagenet
+
 
 cd DeiT
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m torch.distributed.launch --nproc_per_node=4  --use_env main.py --model vit_deit_small_patch16_224 --batch-size 256 --data-path /data/datasets/ImageNet1k --output_dir /data/yzy/bimask/deit_imagenet
