@@ -75,9 +75,12 @@ def build_dataset(is_train, args):
             # 判断本地路径是否存在
             if os.path.exists(args.data_path):
                 # 本地 huggingface repo
+                print("local imagenet dir exists. Trying loading...")
                 hf_dataset = load_dataset(args.data_path, split=split)
+                print("Finished loading.")
             else:
                 # 远程 huggingface hub
+                print("loading from hub...")
                 hf_dataset = load_dataset("imagenet-1k", split=split)
             hf_dataset = hf_dataset.with_format("torch")
             class HFDataset(torch.utils.data.Dataset):
