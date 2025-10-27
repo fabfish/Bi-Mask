@@ -125,4 +125,20 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m torch.distributed.launch --nproc_per_nod
 
 hetao new
 
+cd ~
+
+rsync -avP /data/lishen/yzy/ILSVRC2012_img_train.tar ./
+mkdir -p imagenet/train
+mkdir train && tar -xvf ILSVRC2012_img_train.tar -C train && for x in `ls train/*tar`; do fn=train/`basename $x .tar`; mkdir $fn; tar -xvf $x -C $fn; rm -f $fn.tar; done
+
+rsync -avP /data/lishen/yzy/ILSVRC2012_img_val.tar ./ 
+mkdir -p imagenet/val
+tar -xvf ILSVRC2012_img_val.tar -C val
+cp /data/lishen/yzy/valprep.sh ./imagenet/val/
+cd imagenet/val/
+bash valprep.sh
+
+git clone git@github.com:fabfish/Bi-Mask.git
+
+
 CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m torch.distributed.launch --nproc_per_node=4  --use_env main.py --model vit_deit_small_patch16_224 --batch-size 256 --data-path /root/imagenet --output_dir /root/deit_imagenet --num_workers 0 --no-pin-mem
