@@ -160,7 +160,7 @@ class MyConv2d_Lay_m3(autograd.Function):
         g_inp_unf = g.matmul(w_s)
         g_b = g.sum(dim=1)
 
-        return g_w_s , g_inp_unf, None, None, g_b, None
+        return g_w_s , g_inp_unf, None, g_b, None
 
 class NMConv(nn.Linear):
     def __init__(self, *args, **kwargs):

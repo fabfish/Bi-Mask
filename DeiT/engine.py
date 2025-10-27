@@ -15,6 +15,8 @@ from timm.utils import accuracy, ModelEma
 from losses import DistillationLoss
 import utils
 
+from timm.models.vision_transformer import NMConv
+
 def apply_post_masks(model):
     """
     在 optimizer.step() 之后调用，遍历所有 NMConv，对 mask_mode == 'm4_post' 或需要 post 投影的层执行权重投影。
