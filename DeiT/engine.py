@@ -15,7 +15,15 @@ from timm.utils import accuracy, ModelEma
 from losses import DistillationLoss
 import utils
 
-
+def apply_post_masks(model):
+    """
+    在 optimizer.step() 之后调用，遍历所有 NMConv，对 mask_mode == 'm4_post' 或需要 post 投影的层执行权重投影。
+    """
+    for m in model.modules():
+        if isinstance(m, NMConv):
+            # 如果你想在所有层都做 post 投影，去掉 mask_mode 条件
+            if getattr(m, 'mask_mode', None) == 'm4':
+                m.post_mask_apply()
                 
 def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -53,6 +61,8 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
         #            parameters=model.parameters(), create_graph=is_second_order)
         loss.backward()
         optimizer.step()
+
+        apply_post_masks(model)
 
         torch.cuda.synchronize()
         if model_ema is not None:

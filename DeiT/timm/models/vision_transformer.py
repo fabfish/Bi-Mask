@@ -137,6 +137,31 @@ class MyConv2d_Lay(autograd.Function):
 
         return g_w_s , g_inp_unf, None, None, g_b, None
 
+class MyConv2d_Lay_m3(autograd.Function):
+    @staticmethod
+    def forward(ctx, weight, inp_unf, forward_mask, bias, decay = 0.0002):
+        ctx.save_for_backward(weight, inp_unf)
+        w_s = weight * forward_mask
+
+        ctx.decay = decay
+        ctx.mask = forward_mask       
+
+        out_unf = inp_unf.matmul(w_s) + bias
+        return out_unf
+
+    @staticmethod
+    def backward(ctx, g):
+        
+        weight, inp_unf = ctx.saved_tensors
+        w_s = weight.t()
+
+        g_w_s = inp_unf.transpose(1,2).matmul(g)
+        g_w_s = g_w_s + ctx.decay * (1 - ctx.mask) * weight
+        g_inp_unf = g.matmul(w_s)
+        g_b = g.sum(dim=1)
+
+        return g_w_s , g_inp_unf, None, None, g_b, None
+
 class NMConv(nn.Linear):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -149,16 +174,39 @@ class NMConv(nn.Linear):
         self.forward_mask = torch.zeros(self.weight.t().shape).requires_grad_(False)
         self.backward_mask = torch.zeros(self.weight.t().shape).requires_grad_(False)
 
+        # if mask_mode is not None:
+        self.mask_mode = "m3"
+
+    def pre_mask_apply(self):
+        if self.forward_mask is not None and self.forward_mask.numel() > 0:
+            # forward_mask 的 shape 通常是 weight.t().shape，因此需要转置回来与 weight 对齐
+            self.weight.data *= self.forward_mask.t()
+
+    def post_mask_apply(self):
+        # 在 optimizer.step() 之后调用：强制将权重投影到 mask 上，w := m' ⊙ w
+        w = self.weight.t()
+        w_s, _ = get_n_m_sparse_matrix(w)
+        self.weight.data = w_s.t()
+    
     def forward(self, x):
 
         w = self.weight.t()
         if self.iter % self.max_iter == 0:
             self.permute_idx = get_best_permutation(w)
         w_s, self.forward_mask = get_n_m_sparse_matrix(w)
-        self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)
+        
+        # self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)
+
+        if self.mask_mode == "m3":
+            self.pre_mask_apply()
+
+        if self.mask_mode == "m2":
+            self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)
+            out = MyConv2d_Lay.apply(w, x, self.forward_mask, self.backward_mask, self.bias, 0.0002)
+        else:
+            out = MyConv2d_Lay_m3.apply(w, x, self.forward_mask, self.bias, 0.0002)            
 
         # print("bias:\n",self.bias)
-        out = MyConv2d_Lay.apply(w, x, self.forward_mask, self.backward_mask, self.bias)
         self.iter += 1
 
         return out
