@@ -51,7 +51,7 @@ if WANDB_AVAILABLE and args.wandb_project:
     )
 
 if args.label_smoothing is None:
-    loss_func = CrossEntropyLoss()
+    loss_func = nn.CrossEntropyLoss()
 else:
     loss_func = LabelSmoothing(smoothing=args.label_smoothing)
 
@@ -60,6 +60,11 @@ print('==> Loading Data..')
 
 loader = cifar10.Data(args)
 
+from utils.conv_type import NMConv
+def apply_post_masks(model):
+    for m in model.modules():
+        if isinstance(m, NMConv):
+            m.post_mask_apply()
 
 def train(model, optimizer, trainLoader, args, epoch):
 
@@ -80,6 +85,11 @@ def train(model, optimizer, trainLoader, args, epoch):
         loss.backward()
         losses.update(loss.item(), inputs.size(0))
         optimizer.step()
+
+        if args.mask_mode == "m4":
+            apply_post_masks(model)
+        # apply_post_masks(model)
+        
         for n,m in model.named_modules():
             if hasattr(m, 'max_iter'):
                 m.iter += 1
@@ -147,6 +157,22 @@ def validate(model, testLoader):
 def get_model(args):
     model = models.__dict__[args.arch]().to(device)
     model = model.to(device)
+    
+    # Print mask mode for each layer
+    print(f"\n=== Model Mask Mode Configuration ===")
+    print(f"Global mask_mode: {args.mask_mode}")
+    print(f"Layer-wise mask modes:")
+    
+    from utils.conv_type import NMConv
+    layer_count = 0
+    for name, module in model.named_modules():
+        if isinstance(module, NMConv):
+            layer_count += 1
+            print(f"  Layer {layer_count}: {name} -> mask_mode: {module.mask_mode}")
+    
+    print(f"Total NMConv layers: {layer_count}")
+    print("=" * 40)
+    
     return model
 
 def get_optimizer(args, model):
