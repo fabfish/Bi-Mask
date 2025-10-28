@@ -7,6 +7,14 @@ from utils.common import *
 from utils.conv_type import *
 from data import imagenet
 
+# Import wandb if available
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+    print("Warning: wandb not available. Install with: pip install wandb")
+
 if args.debug:
     pass
 
@@ -17,6 +25,18 @@ checkpoint = utils.checkpoint(args)
 now = datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
 logger = utils.get_logger(os.path.join(args.job_dir, 'logger-' + now + '.log'))
 device = torch.device(f"cuda:{args.gpus[0]}") if torch.cuda.is_available() else 'cpu'
+
+# Initialize wandb if available and configured
+if WANDB_AVAILABLE and args.wandb_project:
+    if not args.wandb_name:
+        args.wandb_name = f"{args.arch}_{args.mask_mode}_{args.N}_{args.M}_{args.num_epochs}"
+    print(f"Initializing wandb with project: {args.wandb_project}, name: {args.wandb_name}")
+    wandb.init(
+        project=args.wandb_project,
+        name=args.wandb_name,
+        config=vars(args)
+    )
+
 if args.label_smoothing is None:
     loss_func = nn.CrossEntropyLoss().cuda()
 else:
@@ -86,6 +106,17 @@ def train(epoch, train_loader, model, criterion, optimizer):
                 'Prec@1(1,5) {top1.avg:.2f}, {top5.avg:.2f}'.format(
                     epoch, batch_idx, num_iter, loss=losses,
                     top1=top1, top5=top5))
+            
+            # Log to wandb if available
+            if WANDB_AVAILABLE and args.wandb_project:
+                wandb.log({
+                    'epoch': epoch,
+                    'batch': batch_idx,
+                    'train_loss': float(losses.avg),
+                    'train_top1': float(top1.avg),
+                    'train_top5': float(top5.avg),
+                    'learning_rate': optimizer.param_groups[0]['lr']
+                })
 
     return losses.avg, top1.avg, top5.avg
 
@@ -127,6 +158,15 @@ def validate(val_loader, model, criterion, args):
 
         logger.info(' * Acc@1 {top1.avg:.3f} Acc@5 {top5.avg:.3f}'
                     .format(top1=top1, top5=top5))
+        
+        # Log validation metrics to wandb if available
+        if WANDB_AVAILABLE and args.wandb_project:
+            wandb.log({
+                'epoch': epoch if 'epoch' in locals() else 0,
+                'val_loss': float(losses.avg),
+                'val_top1': float(top1.avg),
+                'val_top5': float(top5.avg)
+            })
 
     return losses.avg, top1.avg, top5.avg
 
@@ -173,8 +213,23 @@ def main():
             'epoch': epoch + 1,
         }
         checkpoint.save_model(state, epoch + 1, is_best)
+        
+        # Log epoch-level metrics to wandb if available
+        if WANDB_AVAILABLE and args.wandb_project:
+            wandb.log({
+                'epoch': epoch,
+                'best_top1': float(best_acc_top1),
+                'best_top5': float(best_acc),
+                'current_top1': float(test_acc_top1),
+                'current_top5': float(test_acc),
+                'learning_rate': optimizer.param_groups[0]['lr']
+            })
 
     logger.info('Best accurary(top5): {:.3f} (top1): {:.3f}'.format(float(best_acc), float(best_acc_top1)))
+    
+    # Finish wandb run if available
+    if WANDB_AVAILABLE and args.wandb_project:
+        wandb.finish()
 
 
 def resume(args, model, optimizer):

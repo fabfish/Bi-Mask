@@ -1,7 +1,0 @@
-device:  cpu
-==> Loading Data..
-Files already downloaded and verified
-Files already downloaded and verified
-=> Creating model 'resnet32_cifar10'
-==> Conv Type: NMConv
-==> BN Type: LearnedBatchNorm
