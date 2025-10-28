@@ -156,6 +156,7 @@ class NMConv(nn.Conv2d):
         self.unfold = nn.Unfold(kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
         
         # Add mask_mode support
+        from utils.options import args
         self.mask_mode = getattr(args, 'mask_mode', 'm4')
 
     def post_mask_apply(self):

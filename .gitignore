@@ -3,4 +3,4 @@
 /deit_imagenet
 .ipynb_checkpoints/
 /datasets
-/experiments
+*experiments/
