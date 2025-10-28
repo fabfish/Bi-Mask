@@ -147,4 +147,8 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 python3 -m torch.distributed.launch --nproc_per_nod
 
 
 
+pip config set global.index-url https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple
 
+/root/Bi-Mask/datasets
+
+python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_path /root/Bi-Mask/datasets --label_smoothing 0.1 --num_epochs 300 --job_dir /root/resnet32_cifar10_test

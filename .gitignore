@@ -2,3 +2,4 @@
 *wandb/
 /deit_imagenet
 .ipynb_checkpoints/
+/datasets
