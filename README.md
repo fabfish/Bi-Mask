@@ -70,8 +70,10 @@ python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_pat
 Use `--mask_mode` parameter to choose different Bi-Mask implementations:
 
 - `m2`: Bidirectional mask (forward + backward mask)
-- `m3`: Forward mask only
-- `m4`: Default mode (same as original)
+- `m3`: Pre-mask mode (mask applied before forward pass)
+- `m4`: Post-mask mode (mask applied after optimizer step)
+
+The model will automatically print the mask mode configuration for each layer when training starts.
 
 ```bash
 # Train with m2 mode (bidirectional)

@@ -174,6 +174,22 @@ def validate(val_loader, model, criterion, args):
 def get_model(args):
     model = models.__dict__[args.arch]().to(device)
     model = model.to(device)
+    
+    # Print mask mode for each layer
+    print(f"\n=== Model Mask Mode Configuration ===")
+    print(f"Global mask_mode: {args.mask_mode}")
+    print(f"Layer-wise mask modes:")
+    
+    from utils.conv_type import NMConv
+    layer_count = 0
+    for name, module in model.named_modules():
+        if isinstance(module, NMConv):
+            layer_count += 1
+            print(f"  Layer {layer_count}: {name} -> mask_mode: {module.mask_mode}")
+    
+    print(f"Total NMConv layers: {layer_count}")
+    print("=" * 40)
+    
     return model
 
 def set_model_nopermute(model):
