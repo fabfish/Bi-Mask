@@ -54,6 +54,33 @@ cd CnnModels
 python cifar.py --arch mobilenetv2 --lr 0.1 --weight_decay 0.001 --data_path PATH_TO_DATASETS --label_smoothing 0.1 --num_epochs 300 --job_dir PATH_TO_JOB_DIR
 ```
 
+### New Features: Wandb Logging and Bi-Mask Modes
+
+The CnnModels now support wandb logging and different Bi-Mask modes:
+
+#### Wandb Logging
+Add `--wandb_project` and `--wandb_name` parameters to enable wandb logging:
+
+```bash
+cd CnnModels
+python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_path PATH_TO_DATASETS --label_smoothing 0.1 --num_epochs 300 --job_dir PATH_TO_JOB_DIR --wandb_project bimask_cnn --wandb_name resnet32_m2
+```
+
+#### Bi-Mask Modes
+Use `--mask_mode` parameter to choose different Bi-Mask implementations:
+
+- `m2`: Bidirectional mask (forward + backward mask)
+- `m3`: Forward mask only
+- `m4`: Default mode (same as original)
+
+```bash
+# Train with m2 mode (bidirectional)
+python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_path PATH_TO_DATASETS --label_smoothing 0.1 --num_epochs 300 --job_dir PATH_TO_JOB_DIR --mask_mode m2 --wandb_project bimask_cnn
+
+# Train with m3 mode (forward only)
+python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_path PATH_TO_DATASETS --label_smoothing 0.1 --num_epochs 300 --job_dir PATH_TO_JOB_DIR --mask_mode m3 --wandb_project bimask_cnn
+```
+
 ## Testing
 
 We provide our trained models and experiment logs at following Table:

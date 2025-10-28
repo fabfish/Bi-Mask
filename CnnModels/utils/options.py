@@ -202,5 +202,14 @@ parser.add_argument(
     help="iteration to get the best mask with permutation"
 )
 
+# wandb parameters
+parser.add_argument('--wandb_project', default='bimask_cnn', type=str,
+                    help='wandb project name')
+parser.add_argument('--wandb_name', default='', type=str,
+                    help='wandb run name')
+
+# bimask mode parameters
+parser.add_argument('--mask_mode', default='m4', type=str, choices=['m2', 'm3', 'm4'],
+                    help='Bi-mask mode: m2 (bidirectional), m3 (pre), m4 (post)')
 
 args = parser.parse_args()

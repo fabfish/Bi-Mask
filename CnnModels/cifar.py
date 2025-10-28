@@ -18,6 +18,14 @@ from importlib import import_module
 import models
 import pdb
 
+# Import wandb if available
+try:
+    import wandb
+    WANDB_AVAILABLE = True
+except ImportError:
+    WANDB_AVAILABLE = False
+    print("Warning: wandb not available. Install with: pip install wandb")
+
 visible_gpus_str = ','.join(str(i) for i in args.gpus)
 os.environ['CUDA_VISIBLE_DEVICES'] = visible_gpus_str
 args.gpus = [i for i in range(len(args.gpus))]
@@ -29,6 +37,17 @@ logger = utils.get_logger(os.path.join(args.job_dir, 'logger-'+now+'.log'))
 device = torch.device(f"cuda:{args.gpus[0]}") if torch.cuda.is_available() else 'cpu'
 
 print("device: ", device)
+
+# Initialize wandb if available and configured
+if WANDB_AVAILABLE and args.wandb_project:
+    if not args.wandb_name:
+        args.wandb_name = f"{args.arch}_{args.mask_mode}_{args.N}_{args.M}_{args.num_epochs}"
+    print(f"Initializing wandb with project: {args.wandb_project}, name: {args.wandb_name}")
+    wandb.init(
+        project=args.wandb_project,
+        name=args.wandb_name,
+        config=vars(args)
+    )
 
 if args.label_smoothing is None:
     loss_func = CrossEntropyLoss()
@@ -79,6 +98,16 @@ def train(model, optimizer, trainLoader, args, epoch):
                 )
             )
             start_time = current_time
+            
+            # Log to wandb if available
+            if WANDB_AVAILABLE and args.wandb_project:
+                wandb.log({
+                    'epoch': epoch,
+                    'batch': batch,
+                    'train_loss': float(losses.avg),
+                    'train_accuracy': float(accurary.avg),
+                    'learning_rate': optimizer.param_groups[0]['lr']
+                })
 
 def validate(model, testLoader):
     global best_acc
@@ -103,6 +132,15 @@ def validate(model, testLoader):
             'Test Loss {:.4f}\tAccurary {:.2f}%\t\tTime {:.2f}s\n'
             .format(float(losses.avg), float(accurary.avg), (current_time - start_time))
         )
+        
+        # Log validation metrics to wandb if available
+        if WANDB_AVAILABLE and args.wandb_project:
+            wandb.log({
+                'epoch': epoch if 'epoch' in locals() else 0,
+                'val_loss': float(losses.avg),
+                'val_accuracy': float(accurary.avg)
+            })
+    
     return accurary.avg
 
 def get_model(args):
@@ -156,6 +194,15 @@ if __name__ == '__main__':
         is_best = best_acc < test_acc
         best_acc = max(best_acc, test_acc)
 
+        # Log epoch-level metrics to wandb if available
+        if WANDB_AVAILABLE and args.wandb_project:
+            wandb.log({
+                'epoch': epoch,
+                'best_accuracy': float(best_acc),
+                'current_accuracy': float(test_acc),
+                'learning_rate': optimizer.param_groups[0]['lr']
+            })
+
         model_state_dict = model.module.state_dict() if len(args.gpus) > 1 else model.state_dict()
 
         state = {
@@ -169,4 +216,8 @@ if __name__ == '__main__':
         checkpoint.save_model(state, epoch + 1, is_best)
 
     logger.info('Best accurary: {:.3f}'.format(float(best_acc)))
+    
+    # Finish wandb run if available
+    if WANDB_AVAILABLE and args.wandb_project:
+        wandb.finish()
 

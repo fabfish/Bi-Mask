@@ -50,6 +50,31 @@ class MyConv2d(autograd.Function):
         g_inp_unf = g.matmul(w_s)
         return g_w_s , g_inp_unf, None, None, None
 
+class MyConv2d_Lay_m3(autograd.Function):
+    @staticmethod
+    def forward(ctx, weight, inp_unf, forward_mask, decay = 0.0002):
+        ctx.save_for_backward(weight, inp_unf)
+        w_s = weight * forward_mask
+
+        ctx.decay = decay
+        ctx.mask = forward_mask       
+
+        out_unf = inp_unf.matmul(w_s)
+        return out_unf
+
+    @staticmethod
+    def backward(ctx, g):
+        
+        weight, inp_unf = ctx.saved_tensors
+        w_s = weight.t()
+
+        g_w_s = inp_unf.transpose(1,2).matmul(g)
+        g_w_s = g_w_s + ctx.decay * (1 - ctx.mask) * weight
+        g_inp_unf = g.matmul(w_s)
+        # g_b = g.sum(dim=1)
+
+        return g_w_s , g_inp_unf, None, None
+
 
 def get_best_permutation(w):
     length = w.numel()
@@ -129,15 +154,30 @@ class NMConv(nn.Conv2d):
         self.forward_mask = torch.zeros(self.weight.view(self.weight.size(0), -1).t().shape).requires_grad_(False)
         self.backward_mask = torch.zeros(self.weight.view(self.weight.size(0), -1).t().shape).requires_grad_(False)
         self.unfold = nn.Unfold(kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
+        
+        # Add mask_mode support
+        self.mask_mode = getattr(args, 'mask_mode', 'm4')
 
     def forward(self, x):
         w = self.weight.view(self.weight.size(0), -1).t()
         if self.iter % self.max_iter == 0:
             self.permute_idx = get_best_permutation(w)
         w_s, self.forward_mask = get_n_m_sparse_matrix(w)
-        self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)   
-        inp_unf = self.unfold(x)
-        out_unf = MyConv2d.apply(w, inp_unf.transpose(1, 2), self.forward_mask, self.backward_mask)
+        
+        # Apply different mask modes
+        if self.mask_mode == "m2":
+            # Bidirectional mask mode
+            self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)   
+            inp_unf = self.unfold(x)
+            out_unf = MyConv2d.apply(w, inp_unf.transpose(1, 2), self.forward_mask, self.backward_mask)
+        elif self.mask_mode == "m3" or self.mask_mode == "m4":
+            # Forward mask only mode
+            inp_unf = self.unfold(x)
+            out_unf = MyConv2d_Lay_m3.apply(w, inp_unf.transpose(1, 2), self.forward_mask)
+
+            if self.mask_mode == "m3":
+                self.weight.data *= self.forward_mask.t()
+
         if self.flag == False:
             self.fold = nn.Fold((int(math.sqrt(out_unf.shape[1])), int(math.sqrt(out_unf.shape[1]))), (1,1))
             self.flag = True
