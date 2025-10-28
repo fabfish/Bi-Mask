@@ -212,4 +212,10 @@ parser.add_argument('--wandb_name', default='', type=str,
 parser.add_argument('--mask_mode', default='m4', type=str, choices=['m2', 'm3', 'm4'],
                     help='Bi-mask mode: m2 (bidirectional), m3 (pre), m4 (post)')
 
+# random mask parameters
+parser.add_argument('--use_random_mask', action='store_true', default=False,
+                    help='Use random mask instead of N:M semi-structured mask')
+parser.add_argument('--random_mask_ratio', default=0.5, type=float,
+                    help='Ratio of elements to keep in random mask (default: 0.5 for 50%)')
+
 args = parser.parse_args()

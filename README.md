@@ -75,12 +75,23 @@ Use `--mask_mode` parameter to choose different Bi-Mask implementations:
 
 The model will automatically print the mask mode configuration for each layer when training starts.
 
+#### Random Mask Support
+Use `--use_random_mask` flag to enable random mask instead of N:M semi-structured mask:
+
+- `--use_random_mask`: Enable random mask (default: False)
+- `--random_mask_ratio`: Ratio of elements to keep (default: 0.5 for 50% sparsity)
+
+Random mask uses topk algorithm based on absolute weight values to select the most important elements.
+
 ```bash
-# Train with m2 mode (bidirectional)
+# Train with N:M mask (2:4 pattern)
 python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_path PATH_TO_DATASETS --label_smoothing 0.1 --num_epochs 300 --job_dir PATH_TO_JOB_DIR --mask_mode m2 --wandb_project bimask_cnn
 
-# Train with m3 mode (forward only)
-python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_path PATH_TO_DATASETS --label_smoothing 0.1 --num_epochs 300 --job_dir PATH_TO_JOB_DIR --mask_mode m3 --wandb_project bimask_cnn
+# Train with random mask (50% sparsity)
+python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_path PATH_TO_DATASETS --label_smoothing 0.1 --num_epochs 300 --job_dir PATH_TO_JOB_DIR --use_random_mask --random_mask_ratio 0.5 --wandb_project bimask_cnn
+
+# Train with random mask (30% sparsity)
+python cifar.py --arch resnet32_cifar10 --lr 0.1 --weight_decay 0.001 --data_path PATH_TO_DATASETS --label_smoothing 0.1 --num_epochs 300 --job_dir PATH_TO_JOB_DIR --use_random_mask --random_mask_ratio 0.3 --wandb_project bimask_cnn
 ```
 
 ## Testing

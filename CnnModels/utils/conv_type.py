@@ -28,6 +28,23 @@ def get_n_m_sparse_matrix(w):
     mask = mask.scatter_(dim=1, index=index, value=0).reshape(w.t().shape).t()
     return w * mask, mask
 
+def get_random_sparse_matrix(w, ratio=0.5):
+    """Get random sparse matrix using topk algorithm"""
+    w_flat = w.flatten()
+    num_elements = w_flat.numel()
+    num_keep = int(num_elements * ratio)
+    
+    # Get topk indices based on absolute values
+    _, topk_indices = torch.topk(w_flat.abs(), num_keep)
+    
+    # Create mask
+    mask_flat = torch.zeros_like(w_flat)
+    mask_flat[topk_indices] = 1
+    
+    # Reshape mask to match weight shape
+    mask = mask_flat.reshape(w.shape)
+    return w * mask, mask
+
 class MyConv2d(autograd.Function):
     @staticmethod
     def forward(ctx, weight, inp_unf, forward_mask, backward_mask, decay = 0.0002):
@@ -158,25 +175,38 @@ class NMConv(nn.Conv2d):
         # Add mask_mode support
         from utils.options import args
         self.mask_mode = getattr(args, 'mask_mode', 'm4')
+        self.use_random_mask = getattr(args, 'use_random_mask', False)
+        self.random_mask_ratio = getattr(args, 'random_mask_ratio', 0.5)
 
     def post_mask_apply(self):
         if self.mask_mode == "m4":
             # Reshape weight to match forward_mask dimensions
             w = self.weight.view(self.weight.size(0), -1).t()
-            w_s, _ = get_n_m_sparse_matrix(w)
+            if self.use_random_mask:
+                w_s, _ = get_random_sparse_matrix(w, self.random_mask_ratio)
+            else:
+                w_s, _ = get_n_m_sparse_matrix(w)
             self.weight.data = w_s.t().view(self.weight.shape)
         
 
     def forward(self, x):
         w = self.weight.view(self.weight.size(0), -1).t()
-        if self.iter % self.max_iter == 0:
-            self.permute_idx = get_best_permutation(w)
-        w_s, self.forward_mask = get_n_m_sparse_matrix(w)
+        
+        # Choose mask type based on configuration
+        if self.use_random_mask:
+            # Use random mask with topk algorithm
+            w_s, self.forward_mask = get_random_sparse_matrix(w, self.random_mask_ratio)
+        else:
+            # Use N:M semi-structured mask
+            if self.iter % self.max_iter == 0:
+                self.permute_idx = get_best_permutation(w)
+            w_s, self.forward_mask = get_n_m_sparse_matrix(w)
         
         # Apply different mask modes
         if self.mask_mode == "m2":
             # Bidirectional mask mode
-            self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)   
+            if not self.use_random_mask:
+                self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)   
             inp_unf = self.unfold(x)
             out_unf = MyConv2d.apply(w, inp_unf.transpose(1, 2), self.forward_mask, self.backward_mask)
         elif self.mask_mode == "m3" or self.mask_mode == "m4":

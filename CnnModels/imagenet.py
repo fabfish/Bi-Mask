@@ -185,6 +185,11 @@ def get_model(args):
     # Print mask mode for each layer
     print(f"\n=== Model Mask Mode Configuration ===")
     print(f"Global mask_mode: {args.mask_mode}")
+    print(f"Use random mask: {args.use_random_mask}")
+    if args.use_random_mask:
+        print(f"Random mask ratio: {args.random_mask_ratio}")
+    else:
+        print(f"N:M pattern: {args.N}:{args.M}")
     print(f"Layer-wise mask modes:")
     
     from utils.conv_type import NMConv
@@ -192,7 +197,8 @@ def get_model(args):
     for name, module in model.named_modules():
         if isinstance(module, NMConv):
             layer_count += 1
-            print(f"  Layer {layer_count}: {name} -> mask_mode: {module.mask_mode}")
+            mask_type = "random" if module.use_random_mask else f"{module.N}:{module.M}"
+            print(f"  Layer {layer_count}: {name} -> mask_mode: {module.mask_mode}, mask_type: {mask_type}")
     
     print(f"Total NMConv layers: {layer_count}")
     print("=" * 40)

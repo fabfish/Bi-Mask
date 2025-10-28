@@ -196,6 +196,12 @@ def get_args_parser():
         help="finish remove epoch"
     )
 
+    # random mask parameters
+    parser.add_argument('--use_random_mask', action='store_true', default=False,
+                        help='Use random mask instead of N:M semi-structured mask')
+    parser.add_argument('--random_mask_ratio', default=0.5, type=float,
+                        help='Ratio of elements to keep in random mask (default: 0.5 for 50%)')
+
     return parser
 
 

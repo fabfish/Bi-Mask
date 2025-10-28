@@ -87,6 +87,23 @@ def get_n_m_sparse_matrix(w):
     mask = mask.scatter_(dim=1, index=index, value=0).reshape(w.t().shape).t()
     return w * mask, mask
 
+def get_random_sparse_matrix(w, ratio=0.5):
+    """Get random sparse matrix using topk algorithm"""
+    w_flat = w.flatten()
+    num_elements = w_flat.numel()
+    num_keep = int(num_elements * ratio)
+    
+    # Get topk indices based on absolute values
+    _, topk_indices = torch.topk(w_flat.abs(), num_keep)
+    
+    # Create mask
+    mask_flat = torch.zeros_like(w_flat)
+    mask_flat[topk_indices] = 1
+    
+    # Reshape mask to match weight shape
+    mask = mask_flat.reshape(w.shape)
+    return w * mask, mask
+
 def get_n_m_backward_matrix(forward_mask, w_s, permutation):
     w_s = w_s.t()
     forward_mask = forward_mask.t()
@@ -176,6 +193,8 @@ class NMConv(nn.Linear):
 
         # if mask_mode is not None:
         self.mask_mode = "m4"
+        self.use_random_mask = False
+        self.random_mask_ratio = 0.5
 
     def pre_mask_apply(self):
         if self.forward_mask is not None and self.forward_mask.numel() > 0:
@@ -185,15 +204,25 @@ class NMConv(nn.Linear):
     def post_mask_apply(self):
         # 在 optimizer.step() 之后调用：强制将权重投影到 mask 上，w := m' ⊙ w
         w = self.weight.t()
-        w_s, _ = get_n_m_sparse_matrix(w)
+        if self.use_random_mask:
+            w_s, _ = get_random_sparse_matrix(w, self.random_mask_ratio)
+        else:
+            w_s, _ = get_n_m_sparse_matrix(w)
         self.weight.data = w_s.t()
     
     def forward(self, x):
 
         w = self.weight.t()
-        if self.iter % self.max_iter == 0:
-            self.permute_idx = get_best_permutation(w)
-        w_s, self.forward_mask = get_n_m_sparse_matrix(w)
+        
+        # Choose mask type based on configuration
+        if self.use_random_mask:
+            # Use random mask with topk algorithm
+            w_s, self.forward_mask = get_random_sparse_matrix(w, self.random_mask_ratio)
+        else:
+            # Use N:M semi-structured mask
+            if self.iter % self.max_iter == 0:
+                self.permute_idx = get_best_permutation(w)
+            w_s, self.forward_mask = get_n_m_sparse_matrix(w)
         
         # self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)
 
@@ -201,7 +230,8 @@ class NMConv(nn.Linear):
             self.pre_mask_apply()
 
         if self.mask_mode == "m2":
-            self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)
+            if not self.use_random_mask:
+                self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)
             out = MyConv2d_Lay.apply(w, x, self.forward_mask, self.backward_mask, self.bias, 0.0002)
         else:
             out = MyConv2d_Lay_m3.apply(w, x, self.forward_mask, self.bias, 0.0002)            
