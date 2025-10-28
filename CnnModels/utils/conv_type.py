@@ -158,6 +158,11 @@ class NMConv(nn.Conv2d):
         # Add mask_mode support
         self.mask_mode = getattr(args, 'mask_mode', 'm4')
 
+    def post_mask_apply(self):
+        if self.mask_mode == "m4":
+            self.weight.data *= self.forward_mask.t()
+        
+
     def forward(self, x):
         w = self.weight.view(self.weight.size(0), -1).t()
         if self.iter % self.max_iter == 0:
