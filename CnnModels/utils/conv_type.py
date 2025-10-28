@@ -215,7 +215,8 @@ class NMConv(nn.Conv2d):
             out_unf = MyConv2d_Lay_m3.apply(w, inp_unf.transpose(1, 2), self.forward_mask)
 
             if self.mask_mode == "m3":
-                self.weight.data *= self.forward_mask.t()
+                w_view = self.weight.data.view(self.weight.size(0), -1)
+                w_view *= self.forward_mask.t()
 
         if self.flag == False:
             self.fold = nn.Fold((int(math.sqrt(out_unf.shape[1])), int(math.sqrt(out_unf.shape[1]))), (1,1))
