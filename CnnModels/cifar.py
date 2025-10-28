@@ -29,9 +29,15 @@ except ImportError:
 visible_gpus_str = ','.join(str(i) for i in args.gpus)
 os.environ['CUDA_VISIBLE_DEVICES'] = visible_gpus_str
 os.environ["WANDB_API_KEY"] = 'b0905a7c1edbfb53372e1fc0ce0717dfe5477326'
+
+# After setting CUDA_VISIBLE_DEVICES, remap GPU indices
+original_gpus = args.gpus.copy()
 args.gpus = [i for i in range(len(args.gpus))]
 # usage: --gpus 0 1 2 3
-print("args.gpus: ", args.gpus)
+print(f"Original GPU selection: {original_gpus}")
+print(f"Remapped GPU indices: {args.gpus}")
+print(f"CUDA_VISIBLE_DEVICES: {visible_gpus_str}")
+
 checkpoint = utils.checkpoint(args)
 now = datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
 logger = utils.get_logger(os.path.join(args.job_dir, 'logger-'+now+'.log'))

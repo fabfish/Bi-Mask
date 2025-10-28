@@ -1,5 +1,29 @@
 # CnnModels 更新总结
 
+## 修复的问题
+
+### 1. Mask维度不匹配错误修复
+
+**问题描述**：
+- `post_mask_apply()` 方法中 `self.weight.data *= self.forward_mask.t()` 出现维度不匹配错误
+- 错误信息：`RuntimeError: The size of tensor a (3) must match the size of tensor b (27) at non-singleton dimension 3`
+
+**修复方案**：
+- 在 `post_mask_apply()` 方法中正确处理权重和mask的维度转换
+- 使用 `get_n_m_sparse_matrix()` 函数来生成正确的稀疏权重
+- 确保权重形状与原始卷积层权重形状一致
+
+### 2. GPU选择问题修复
+
+**问题描述**：
+- 无论选择哪个GPU（如 `--gpus 1` 或 `--gpus 2`），都显示 `cuda:0`
+- 这是因为设置 `CUDA_VISIBLE_DEVICES` 后，PyTorch重新映射了GPU索引
+
+**修复方案**：
+- 在设置 `CUDA_VISIBLE_DEVICES` 后，正确重新映射GPU索引
+- 添加调试信息显示原始GPU选择和重新映射后的索引
+- 确保设备选择使用正确的GPU索引
+
 ## 新增功能
 
 ### 1. Mask Mode 配置输出
@@ -88,6 +112,7 @@ python cifar.py --arch resnet32_cifar10 --mask_mode m4 --wandb_project bimask_cn
    - 添加 mask_mode 属性
    - 修改 forward 方法实现不同模式
    - 添加 MyConv2d_Lay_m3 类用于 m3/m4 模式
+   - 修复 post_mask_apply() 方法中的维度不匹配问题
 
 3. **CnnModels/cifar.py**
    - 添加 wandb 导入和初始化
@@ -95,12 +120,14 @@ python cifar.py --arch resnet32_cifar10 --mask_mode m4 --wandb_project bimask_cn
    - 在主训练循环中添加 epoch 级别的日志记录
    - 添加 mask mode 配置输出功能
    - 添加 post-mask 应用功能
+   - 修复 GPU 选择问题
 
 4. **CnnModels/imagenet.py**
    - 添加 wandb 导入和初始化
    - 在训练和验证函数中添加 wandb 日志记录
    - 在主训练循环中添加 epoch 级别的日志记录
    - 添加 mask mode 配置输出功能
+   - 修复 GPU 选择问题
 
 5. **README.md**
    - 更新文档说明新功能
@@ -113,7 +140,10 @@ python cifar.py --arch resnet32_cifar10 --mask_mode m4 --wandb_project bimask_cn
 7. **CnnModels/test_mask_mode.py**
    - 创建测试脚本演示 mask mode 输出功能
 
-8. **CnnModels/CHANGELOG.md**
+8. **CnnModels/test_fixes.py**
+   - 创建测试脚本验证mask维度修复和GPU选择修复
+
+9. **CnnModels/CHANGELOG.md**
    - 详细更新说明
 
 ## 兼容性

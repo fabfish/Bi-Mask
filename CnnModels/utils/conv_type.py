@@ -160,7 +160,10 @@ class NMConv(nn.Conv2d):
 
     def post_mask_apply(self):
         if self.mask_mode == "m4":
-            self.weight.data *= self.forward_mask.t()
+            # Reshape weight to match forward_mask dimensions
+            w = self.weight.view(self.weight.size(0), -1).t()
+            w_s, _ = get_n_m_sparse_matrix(w)
+            self.weight.data = w_s.t().view(self.weight.shape)
         
 
     def forward(self, x):
