@@ -175,7 +175,7 @@ class NMConv(nn.Linear):
         self.backward_mask = torch.zeros(self.weight.t().shape).requires_grad_(False)
 
         # if mask_mode is not None:
-        self.mask_mode = "m3"
+        self.mask_mode = "m4"
 
     def pre_mask_apply(self):
         if self.forward_mask is not None and self.forward_mask.numel() > 0:
