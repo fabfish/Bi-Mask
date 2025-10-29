@@ -207,6 +207,8 @@ class NMConv(nn.Conv2d):
             # Bidirectional mask mode
             if not self.use_random_mask:
                 self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)   
+            else:
+                self.backward_mask = self.forward_mask
             inp_unf = self.unfold(x)
             out_unf = MyConv2d.apply(w, inp_unf.transpose(1, 2), self.forward_mask, self.backward_mask)
         elif self.mask_mode == "m3" or self.mask_mode == "m4":
