@@ -28,7 +28,7 @@ def get_n_m_sparse_matrix(w):
     mask = mask.scatter_(dim=1, index=index, value=0).reshape(w.t().shape).t()
     return w * mask, mask
 
-def get_random_sparse_matrix(w, ratio=0.5):
+def get_topk_sparse_matrix(w, ratio=0.5):
     """Get random sparse matrix using topk algorithm"""
     w_flat = w.flatten()
     num_elements = w_flat.numel()
@@ -43,6 +43,76 @@ def get_random_sparse_matrix(w, ratio=0.5):
     
     # Reshape mask to match weight shape
     mask = mask_flat.reshape(w.shape)
+    return w * mask, mask
+
+def get_random_sparse_matrix(w, ratio=0.5):
+    """Get random sparse matrix by randomly selecting elements to keep.
+    
+    Args:
+        w (torch.Tensor): The input weight matrix.
+        ratio (float): The ratio of elements to keep (sparsity ratio).
+        
+    Returns:
+        tuple: (w_sparse, mask) where w_sparse is the sparse matrix and mask 
+               is the binary mask.
+    """
+    w_flat = w.flatten()
+    num_elements = w_flat.numel()
+    num_keep = int(num_elements * ratio)
+    
+    # --- 核心修改部分：使用随机排列获取随机索引 ---
+    # torch.randperm(n) 返回从 0 到 n-1 的一个随机排列
+    # 选取前 num_keep 个作为要保留的元素的索引
+    random_indices = torch.randperm(num_elements)[:num_keep]
+    
+    # 创建 mask
+    mask_flat = torch.zeros_like(w_flat)
+    # 将随机选中的索引位置设置为 1
+    mask_flat[random_indices] = 1
+    
+    # Reshape mask to match weight shape
+    mask = mask_flat.reshape(w.shape)
+    
+    # 应用 mask
+    return w * mask, mask
+
+def get_random_sparse_matrix_fast(w, ratio=0.5):
+    """
+    Get random sparse matrix by randomly selecting elements to keep.
+    (Optimized version using rand + topk)
+    
+    Args:
+        w (torch.Tensor): The input weight matrix.
+        ratio (float): The ratio of elements to keep (sparsity ratio).
+        
+    Returns:
+        tuple: (w_sparse, mask) where w_sparse is the sparse matrix and mask
+               is the binary mask.
+    """
+    w_flat = w.flatten()
+    num_elements = w_flat.numel()
+    num_keep = int(num_elements * ratio)
+    
+    # --- 核心优化部分 ---
+    # 1. 为每个元素生成一个随机分数
+    #    确保随机分数张量与 w 在同一设备上 (e.g., 'cuda')
+    random_scores = torch.rand_like(w_flat) 
+    
+    # 2. 使用 topk 找出得分最高的 num_keep 个索引
+    #    这在 GPU 上的效率远高于 torch.randperm
+    _, random_indices = torch.topk(random_scores, num_keep)
+    # --- 优化结束 ---
+    
+    # 创建 mask
+    mask_flat = torch.zeros_like(w_flat)
+    
+    # 将随机选中的索引位置设置为 1
+    mask_flat[random_indices] = 1
+    
+    # Reshape mask to match weight shape
+    mask = mask_flat.reshape(w.shape)
+    
+    # 应用 mask
     return w * mask, mask
 
 class MyConv2d(autograd.Function):
@@ -183,7 +253,7 @@ class NMConv(nn.Conv2d):
             # Reshape weight to match forward_mask dimensions
             w = self.weight.view(self.weight.size(0), -1).t()
             if self.use_random_mask:
-                w_s, _ = get_random_sparse_matrix(w, self.random_mask_ratio)
+                w_s, _ = get_random_sparse_matrix_fast(w, self.random_mask_ratio)
             else:
                 w_s, _ = get_n_m_sparse_matrix(w)
             self.weight.data = w_s.t().view(self.weight.shape)
@@ -195,7 +265,7 @@ class NMConv(nn.Conv2d):
         # Choose mask type based on configuration
         if self.use_random_mask:
             # Use random mask with topk algorithm
-            w_s, self.forward_mask = get_random_sparse_matrix(w, self.random_mask_ratio)
+            w_s, self.forward_mask = get_random_sparse_matrix_fast(w, self.random_mask_ratio)
         else:
             # Use N:M semi-structured mask
             if self.iter % self.max_iter == 0:

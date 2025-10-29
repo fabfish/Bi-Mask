@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Train ResNet-32 on CIFAR-10 with m3 mode and wandb logging
+echo "Training ResNet-32 on CIFAR-10 with m2 mode and wandb..."
+CUDA_VISIBLE_DEVICES=0 python3 cifar.py \
+    --arch resnet32_cifar10 \
+    --lr 0.1 \
+    --gpus 0 \
+    --weight_decay 0.001 \
+    --data_path /root/Bi-Mask/datasets \
+    --label_smoothing 0.1 \
+    --num_epochs 300 \
+    --job_dir experiments/cifar_resnet32_m2 \
+    --mask_mode m2 \
+    --use_random_mask \
+    --random_mask_ratio 0.9 \
+    --wandb_project bimask_cnn_random \
+    --wandb_name resnet32_cifar10_m2_90
