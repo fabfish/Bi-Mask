@@ -115,6 +115,63 @@ def get_random_sparse_matrix_fast(w, ratio=0.5):
     # 应用 mask
     return w * mask, mask
 
+def get_n_m_sparse_matrix_random(w, n=7, m=8):
+    """
+    实现 N:M 稀疏，但在 M 个元素的组内 *随机* 选择 N 个元素保留。
+    
+    注意：此实现遵循常见约定，即沿着权重张量的“输入”维度
+    （在转置后是 dim=1）应用 N:M 稀疏。
+
+    Args:
+        w (torch.Tensor): 输入的权重张量。
+        n (int): 每个 M 块中要保留的元素数量。
+        m (int): 每个块的大小。
+
+    Returns:
+        tuple: (w_sparse, mask) 稀疏化后的权重和掩码。
+    """
+    # 1. 基本检查
+    if n > m:
+        raise ValueError(f"N ({n}) 不能大于 M ({m})")
+    if w.numel() % m != 0:
+        raise ValueError(f"张量总元素数 ({w.numel()}) "
+                         f"必须能被 M ({m}) 整除")
+
+    # 2. 重塑权重以应用分组稀疏
+    # 遵循您参考函数中的约定：先转置，再重塑
+    w_t = w.t()
+    w_t_shape = w_t.shape
+    num_groups = int(w_t.numel() / m)
+    
+    # 变形为 (num_groups, M)
+    w_grouped = w_t.reshape(num_groups, m)
+
+    # 3. 为每个元素生成随机分数
+    # 形状：(num_groups, M)
+    random_scores = torch.rand_like(w_grouped)
+
+    # 4. 在每个组中（dim=1），找到分数最高的 N 个元素的索引
+    # 这等同于在 M 个中随机选择 N 个
+    # indices_to_keep 的形状：(num_groups, N)
+    _, indices_to_keep = torch.topk(random_scores, n, dim=1)
+
+    # 5. 创建掩码
+    # 初始为全零
+    mask_grouped = torch.zeros_like(w_grouped)
+    
+    # 将被选中的索引位置 1
+    mask_grouped.scatter_(dim=1, index=indices_to_keep, value=1.0)
+
+    # 6. 将掩码重塑回原始权重形状
+    # 首先，重塑回转置后的形状
+    mask_t = mask_grouped.reshape(w_t_shape)
+    
+    # 然后，转置回 w 的原始形状
+    mask = mask_t.t()
+
+    # 7. 应用掩码
+    return w * mask, mask
+
 class MyConv2d(autograd.Function):
     @staticmethod
     def forward(ctx, weight, inp_unf, forward_mask, backward_mask, decay = 0.0002):
@@ -255,7 +312,7 @@ class NMConv(nn.Conv2d):
             if self.use_random_mask:
                 w_s, _ = get_random_sparse_matrix_fast(w, self.random_mask_ratio)
             else:
-                w_s, _ = get_n_m_sparse_matrix(w)
+                w_s, _ = get_n_m_sparse_matrix_random(w)
             self.weight.data = w_s.t().view(self.weight.shape)
         
 
@@ -270,13 +327,14 @@ class NMConv(nn.Conv2d):
             # Use N:M semi-structured mask
             if self.iter % self.max_iter == 0:
                 self.permute_idx = get_best_permutation(w)
-            w_s, self.forward_mask = get_n_m_sparse_matrix(w)
+            w_s, self.forward_mask = get_n_m_sparse_matrix_random(w)
         
         # Apply different mask modes
         if self.mask_mode == "m2":
             # Bidirectional mask mode
             if not self.use_random_mask:
-                self.backward_mask = get_n_m_backward_matrix(self.forward_mask, w_s, self.permute_idx)   
+                # self.backward_mask = get_n_m_sparse_matrix_random(self.forward_mask, w_s, self.permute_idx)   
+                self.backward_mask = self.forward_mask
             else:
                 self.backward_mask = self.forward_mask
             inp_unf = self.unfold(x)
