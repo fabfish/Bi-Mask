@@ -13,4 +13,4 @@ CUDA_VISIBLE_DEVICES=0 python3 cifar.py \
     --job_dir experiments/cifar_resnet32_m2 \
     --mask_mode m2 \
     --wandb_project bimask_cnn_random \
-    --wandb_name resnet32_cifar10_m2_rand78
+    --wandb_name resnet32_cifar10_m2_rand31

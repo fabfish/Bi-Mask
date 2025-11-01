@@ -209,7 +209,7 @@ parser.add_argument('--wandb_name', default='', type=str,
                     help='wandb run name')
 
 # bimask mode parameters
-parser.add_argument('--mask_mode', default='m4', type=str, choices=['m2', 'm3', 'm4'],
+parser.add_argument('--mask_mode', default='m4', type=str, choices=['m2', 'm3', 'm4', 'm5'],
                     help='Bi-mask mode: m2 (bidirectional), m3 (pre), m4 (post)')
 
 # random mask parameters

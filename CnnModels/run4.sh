@@ -10,7 +10,7 @@ CUDA_VISIBLE_DEVICES=2 python3 cifar.py \
     --data_path /root/Bi-Mask/datasets \
     --label_smoothing 0.1 \
     --num_epochs 300 \
-    --job_dir experiments/cifar_resnet32_m4_fast \
+    --job_dir experiments/cifar_resnet32_m5 \
     --mask_mode m5 \
-    --wandb_project bimask_cnn_test \
-    --wandb_name resnet32_cifar10_test
+    --wandb_project bimask_cnn_random \
+    --wandb_name resnet32_cifar10_m5_rand31

@@ -115,7 +115,7 @@ def get_random_sparse_matrix_fast(w, ratio=0.5):
     # 应用 mask
     return w * mask, mask
 
-def get_n_m_sparse_matrix_random(w, n=7, m=8):
+def get_n_m_sparse_matrix_random(w, n=31, m=32):
     """
     实现 N:M 稀疏，但在 M 个元素的组内 *随机* 选择 N 个元素保留。
     
@@ -295,8 +295,10 @@ class NMConv(nn.Conv2d):
         self.iter = 0
         self.max_iter = I
         self.permute_idx = [v for v in range(self.weight.view(self.weight.size(0), -1).size(0))]
-        self.forward_mask = torch.zeros(self.weight.view(self.weight.size(0), -1).t().shape).requires_grad_(False)
-        self.backward_mask = torch.zeros(self.weight.view(self.weight.size(0), -1).t().shape).requires_grad_(False)
+        self.device = self.weight.device
+        self.forward_mask = torch.zeros(self.weight.view(self.weight.size(0), -1).t().shape, device=self.device).requires_grad_(False)
+        self.backward_mask = torch.zeros(self.weight.view(self.weight.size(0), -1).t().shape, device=self.device).requires_grad_(False)
+        # self.grad_mask = torch.zeros(self.weight.view(self.weight.size(0), -1).t().shape, device=self.device).requires_grad_(False)
         self.unfold = nn.Unfold(kernel_size=self.kernel_size, dilation=self.dilation, padding=self.padding, stride=self.stride)
         
         # Add mask_mode support
@@ -305,6 +307,27 @@ class NMConv(nn.Conv2d):
         self.use_random_mask = getattr(args, 'use_random_mask', False)
         self.random_mask_ratio = getattr(args, 'random_mask_ratio', 0.5)
 
+    def pre_mask_apply(self):
+        if self.mask_mode == "m3":
+            # Reshape weight to match forward_mask dimensions
+            w = self.weight.view(self.weight.size(0), -1).t()
+            if self.use_random_mask:
+                w_s, _ = get_random_sparse_matrix_fast(w, self.random_mask_ratio)
+            else:
+                w_s, _ = get_n_m_sparse_matrix_random(w)
+            self.weight.data = w_s.t().view(self.weight.shape)
+
+    def grad_mask_apply(self):
+        if self.mask_mode == "m5":
+            w = self.weight.view(self.weight.size(0), -1).t()
+            if self.use_random_mask:
+                w_s, g_mask = get_random_sparse_matrix_fast(w, self.random_mask_ratio)
+            else:
+                w_s, g_mask = get_n_m_sparse_matrix_random(w)
+            self.weight.data = w_s.t().view(self.weight.shape)
+            g = self.weight.grad.view(self.weight.size(0), -1)
+            g *= g_mask.t()
+            
     def post_mask_apply(self):
         if self.mask_mode == "m4":
             # Reshape weight to match forward_mask dimensions
@@ -317,6 +340,8 @@ class NMConv(nn.Conv2d):
         
 
     def forward(self, x):
+        # import pdb;pdb.set_trace()
+        
         w = self.weight.view(self.weight.size(0), -1).t()
         
         # Choose mask type based on configuration
@@ -339,14 +364,17 @@ class NMConv(nn.Conv2d):
                 self.backward_mask = self.forward_mask
             inp_unf = self.unfold(x)
             out_unf = MyConv2d.apply(w, inp_unf.transpose(1, 2), self.forward_mask, self.backward_mask)
-        elif self.mask_mode == "m3" or self.mask_mode == "m4":
+        # elif self.mask_mode == "m3" or self.mask_mode == "m4":
+        else:
             # Forward mask only mode
             inp_unf = self.unfold(x)
             out_unf = MyConv2d_Lay_m3.apply(w, inp_unf.transpose(1, 2), self.forward_mask)
 
             if self.mask_mode == "m3":
-                w_view = self.weight.data.view(self.weight.size(0), -1)
-                w_view *= self.forward_mask.t()
+                # import pdb; pdb.set_trace()
+                # w_view = self.weight.data.view(self.weight.size(0), -1)
+                # w_view *= self.forward_mask.t()
+                pass
 
         if self.flag == False:
             self.fold = nn.Fold((int(math.sqrt(out_unf.shape[1])), int(math.sqrt(out_unf.shape[1]))), (1,1))

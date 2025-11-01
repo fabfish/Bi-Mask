@@ -72,6 +72,16 @@ def apply_post_masks(model):
         if isinstance(m, NMConv):
             m.post_mask_apply()
 
+def apply_pre_masks(model):
+    for m in model.modules():
+        if isinstance(m, NMConv):
+            m.pre_mask_apply()
+
+def apply_grad_masks(model):
+    for m in model.modules():
+        if isinstance(m, NMConv):
+            m.grad_mask_apply()
+
 def train(model, optimizer, trainLoader, args, epoch):
 
 
@@ -90,6 +100,13 @@ def train(model, optimizer, trainLoader, args, epoch):
 
         loss.backward()
         losses.update(loss.item(), inputs.size(0))
+
+        # import pdb; pdb.set_trace()
+        if args.mask_mode == "m3":
+            apply_pre_masks(model)
+        if args.mask_mode == "m5":
+            apply_grad_masks(model)
+            
         optimizer.step()
 
         if args.mask_mode == "m4":
