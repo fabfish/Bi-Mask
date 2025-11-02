@@ -6,13 +6,31 @@ import utils.conv_type
 
 
 class Builder(object):
-    def __init__(self, conv_layer, bn_layer, first_layer=None):
+    def __init__(self, conv_layer, bn_layer, first_layer=None, nm_layers=None):
         self.conv_layer = conv_layer
         self.bn_layer = bn_layer
         self.first_layer = first_layer or conv_layer
+        self.nm_layers = nm_layers or {}  # 字典，用于指定哪些层使用NMConv
+        self.nm_conv_layer = getattr(utils.conv_type, "NMConv") if hasattr(utils.conv_type, "NMConv") else conv_layer
 
-    def conv(self, kernel_size, in_planes, out_planes, stride=1, first_layer=False, bias=False):
-        conv_layer = self.first_layer if first_layer else self.conv_layer
+    def conv(self, kernel_size, in_planes, out_planes, stride=1, first_layer=False, bias=False, layer_name=None):
+        # 根据layer_name决定使用哪种卷积层
+        use_nm_conv = False
+        if layer_name:
+            # 精确匹配
+            if layer_name in self.nm_layers:
+                use_nm_conv = True
+            else:
+                # 前缀匹配，检查是否有任何前缀匹配
+                for prefix in self.nm_layers:
+                    if layer_name.startswith(prefix + '_') or layer_name == prefix:
+                        use_nm_conv = True
+                        break
+        
+        if use_nm_conv:
+            conv_layer = self.nm_conv_layer
+        else:
+            conv_layer = self.first_layer if first_layer else self.conv_layer
 
         if first_layer:
             print(f"==> Building first layer with {args.first_layer_type}")
@@ -79,14 +97,14 @@ class Builder(object):
             padding_mode,
         )
 
-    def conv3x3(self, in_planes, out_planes, stride=1, first_layer=False):
+    def conv3x3(self, in_planes, out_planes, stride=1, first_layer=False, layer_name=None):
         """3x3 convolution with padding"""
-        c = self.conv(3, in_planes, out_planes, stride=stride, first_layer=first_layer)
+        c = self.conv(3, in_planes, out_planes, stride=stride, first_layer=first_layer, layer_name=layer_name)
         return c
 
-    def conv1x1(self, in_planes, out_planes, stride=1, first_layer=False):
+    def conv1x1(self, in_planes, out_planes, stride=1, first_layer=False, layer_name=None):
         """1x1 convolution with padding"""
-        c = self.conv(1, in_planes, out_planes, stride=stride, first_layer=first_layer)
+        c = self.conv(1, in_planes, out_planes, stride=stride, first_layer=first_layer, layer_name=layer_name)
         return c
 
     def conv1x1_fc(self, in_planes, out_planes, stride=1, first_layer=False):
@@ -161,10 +179,17 @@ def get_builder():
     conv_layer = getattr(utils.conv_type, args.conv_type)
     bn_layer = getattr(utils.conv_type, args.bn_type)
 
-  
     first_layer = None
-
-    builder = Builder(conv_layer=conv_layer, bn_layer=bn_layer, first_layer=first_layer)
+    
+    # 解析nm_layers参数，确定哪些层使用NMConv
+    nm_layers = set()
+    if hasattr(args, 'nm_layers') and args.nm_layers:
+        nm_layers_list = args.nm_layers.split(',')
+        for layer in nm_layers_list:
+            nm_layers.add(layer.strip())
+        print("==> NMConv Layers: {}".format(list(nm_layers)))
+    
+    builder = Builder(conv_layer=conv_layer, bn_layer=bn_layer, first_layer=first_layer, nm_layers=nm_layers)
 
     return builder
 

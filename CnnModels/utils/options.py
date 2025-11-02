@@ -153,6 +153,13 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--nm_layers',
+    type=str,
+    default='',
+    help='Comma-separated list of layer names to use NMConv. Example: layer1_block0_conv1,layer2_block1_conv2'
+)
+
+parser.add_argument(
     "--init",
     default="kaiming_normal",
     help="Weight initialization modifications"
