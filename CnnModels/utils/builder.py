@@ -10,21 +10,25 @@ class Builder(object):
         self.conv_layer = conv_layer
         self.bn_layer = bn_layer
         self.first_layer = first_layer or conv_layer
-        self.nm_layers = nm_layers or {}  # 字典，用于指定哪些层使用NMConv
+        self.nm_layers = nm_layers or set()  # 存储应该使用NMConv的层名称
+        
+        # 如果指定了nm_layers，确保NMConv类型可用
         self.nm_conv_layer = getattr(utils.conv_type, "NMConv") if hasattr(utils.conv_type, "NMConv") else conv_layer
 
     def conv(self, kernel_size, in_planes, out_planes, stride=1, first_layer=False, bias=False, layer_name=None):
         # 根据layer_name决定使用哪种卷积层
         use_nm_conv = False
-        if layer_name:
+        if layer_name and self.nm_layers:
             # 精确匹配
             if layer_name in self.nm_layers:
                 use_nm_conv = True
+                print(f"Using NMConv for layer: {layer_name}")
             else:
                 # 前缀匹配，检查是否有任何前缀匹配
                 for prefix in self.nm_layers:
-                    if layer_name.startswith(prefix + '_') or layer_name == prefix:
+                    if layer_name.startswith(prefix):
                         use_nm_conv = True
+                        print(f"Using NMConv for layer: {layer_name}")
                         break
         
         if use_nm_conv:
@@ -172,14 +176,8 @@ class Builder(object):
 
 
 def get_builder():
-
-    print("==> Conv Type: {}".format(args.conv_type))
-    print("==> BN Type: {}".format(args.bn_type))
-
-    conv_layer = getattr(utils.conv_type, args.conv_type)
-    bn_layer = getattr(utils.conv_type, args.bn_type)
-
-    first_layer = None
+    # 获取默认卷积层类型
+    default_conv_type = args.conv_type
     
     # 解析nm_layers参数，确定哪些层使用NMConv
     nm_layers = set()
@@ -188,6 +186,20 @@ def get_builder():
         for layer in nm_layers_list:
             nm_layers.add(layer.strip())
         print("==> NMConv Layers: {}".format(list(nm_layers)))
+        
+        # 如果指定了nm_layers，则使用DenseConv作为默认卷积层
+        print("==> Using selective layer replacement")
+        print("==> Default Conv Type: DenseConv (overriding global setting)")
+        conv_layer = getattr(utils.conv_type, "DenseConv")
+    else:
+        # 没有指定nm_layers，使用全局设置
+        print("==> Conv Type: {}".format(default_conv_type))
+        conv_layer = getattr(utils.conv_type, default_conv_type)
+    
+    print("==> BN Type: {}".format(args.bn_type))
+    bn_layer = getattr(utils.conv_type, args.bn_type)
+
+    first_layer = None
     
     builder = Builder(conv_layer=conv_layer, bn_layer=bn_layer, first_layer=first_layer, nm_layers=nm_layers)
 
