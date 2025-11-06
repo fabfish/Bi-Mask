@@ -225,4 +225,7 @@ parser.add_argument('--use_random_mask', action='store_true', default=False,
 parser.add_argument('--random_mask_ratio', default=0.5, type=float,
                     help='Ratio of elements to keep in random mask (default: 0.5 for 50%)')
 
+parser.add_argument('--seed', default=None, type=int,
+                    help='seed for initializing training. ')
+
 args = parser.parse_args()

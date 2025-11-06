@@ -234,6 +234,13 @@ if __name__ == '__main__':
     best_acc = 0  # best test accuracy
     start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
+    if args.seed is not None:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        torch.cuda.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+
     print("=> Creating model '{}'".format(args.arch))
     model = get_model(args)
     optimizer = get_optimizer(args, model)
@@ -276,4 +283,3 @@ if __name__ == '__main__':
     # Finish wandb run if available
     if WANDB_AVAILABLE and args.wandb_project:
         wandb.finish()
-
