@@ -14,6 +14,17 @@ source "$SCRIPT_DIR/config.sh"
 # 切换到CnnModels目录（确保cifar.py和相关文件可访问）
 cd "$SCRIPT_DIR/../../"
 
+# 自动生成 WANDB_PROJECT（如果未指定）
+# 格式：bimask_cnn_${MODEL_NAME}_${DATASET}
+# 对于 vgg19_cifar10，提取 vgg（去除版本号）
+if [ -z "$WANDB_PROJECT" ]; then
+    ARCH_PARTS=(${ARCH//_/ })
+    MODEL_BASE="${ARCH_PARTS[0]}"
+    # 去除数字，得到纯模型名（vgg19 -> vgg）
+    MODEL_NAME="${MODEL_BASE//[0-9]/}"
+    WANDB_PROJECT="bimask_cnn_${MODEL_NAME}_${DATASET}"
+fi
+
 echo "========================================"
 echo "VGG CIFAR-10 并行测试启动"
 echo "========================================"
@@ -37,12 +48,20 @@ for i in "${!TEST_CASES[@]}"; do
     IFS='|' read -r GPU_ID MASK_MODE <<< "${TEST_CASES[$i]}"
     
     # 自动生成 experiment name
-    # 格式：${MODEL_PREFIX}_${DATASET}_${MASK_MODE}_rand31_${NM_LAYERS_ESCAPED}_sd${SEED}
+    # 格式：${MODEL_NAME}_${DATASET}_${MASK_MODE}_rand31_${NM_LAYERS_ESCAPED}_sd${SEED}
     # 例如：vgg_cifar10_m2_rand31_features49_sd24
-    MODEL_PREFIX="${ARCH%_*}"
+    # 从ARCH中提取模型名称和数据集名称
+    # vgg19_cifar10 -> vgg + cifar10
+    ARCH_PARTS=(${ARCH//_/ })
+    # 提取模型号（从末尾往前，直到第一个非数字）
+    MODEL_NAME="${ARCH_PARTS[0]}"
+    # 去除模型名称中的数字，得到纯模型名（vgg19 -> vgg）
+    MODEL_NAME="${MODEL_NAME//[0-9]/}"
     DATASET_SUFFIX="${ARCH##*_}"
     NM_LAYERS_ESCAPED="${NM_LAYERS//./}"  # 去除点号以避免路径问题
-    TASK_NAME="${MODEL_PREFIX}_${DATASET_SUFFIX}_${MASK_MODE}_rand31_${NM_LAYERS_ESCAPED}_sd${SEED}"
+    TASK_NAME="${MODEL_NAME}_${DATASET_SUFFIX}_${MASK_MODE}_rand31_${NM_LAYERS_ESCAPED}_sd${SEED}"
+    # wandb_name 使用同样的格式，确保与本地任务名一致
+    WANDB_NAME="$TASK_NAME"
     
     # 构建输出目录名称
     JOB_DIR="${EXPERIMENTS_DIR}/${TASK_NAME}"
@@ -68,7 +87,7 @@ for i in "${!TEST_CASES[@]}"; do
             --wandb_project "$WANDB_PROJECT" \
             --nm_layers "$NM_LAYERS" \
             --seed "$SEED" \
-            --wandb_name "$TASK_NAME"
+            --wandb_name "$WANDB_NAME"
     ) &> "${JOB_DIR}.log" &
     
     # 保存进程PID和任务名称

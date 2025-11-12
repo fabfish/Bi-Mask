@@ -16,7 +16,9 @@ NM_LAYERS="layer3"
 SEED=24
 
 # ==================== wandb 配置 ====================
-WANDB_PROJECT="bimask_cnn_random"
+# wandb_project 由 run.sh 自动生成：bimask_cnn_${MODEL}_${DATASET}
+# 例如：bimask_cnn_resnet_cifar10
+WANDB_PROJECT=""  # 留空，由run.sh自动填充
 
 # ==================== 测试用例定义 ====================
 # 仅需指定：GPU编号和mask_mode
