@@ -3,7 +3,7 @@
 # 本文件仅需定义基础参数，experiment name自动生成
 
 # ==================== 基础模型参数 ====================
-ARCH="vgg_cifar10"
+ARCH="vgg19_cifar10"
 DATASET="cifar10"
 DATA_PATH="/root/Bi-Mask/datasets"
 
