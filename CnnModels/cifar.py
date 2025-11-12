@@ -102,6 +102,7 @@ def train(model, optimizer, trainLoader, args, epoch):
         losses.update(loss.item(), inputs.size(0))
 
         # import pdb; pdb.set_trace()
+        
         if args.mask_mode == "m3":
             apply_pre_masks(model)
         if args.mask_mode == "m5":
