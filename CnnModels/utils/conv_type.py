@@ -365,7 +365,7 @@ class NMConv(nn.Conv2d):
             inp_unf = self.unfold(x)
             out_unf = MyConv2d.apply(w, inp_unf.transpose(1, 2), self.forward_mask, self.backward_mask)
         # elif self.mask_mode == "m3" or self.mask_mode == "m4":
-        else:
+        elif self.mask_mode != "m1":
             # Forward mask only mode
             inp_unf = self.unfold(x)
             out_unf = MyConv2d_Lay_m3.apply(w, inp_unf.transpose(1, 2), self.forward_mask)
@@ -375,6 +375,10 @@ class NMConv(nn.Conv2d):
                 # w_view = self.weight.data.view(self.weight.size(0), -1)
                 # w_view *= self.forward_mask.t()
                 pass
+        else:
+            # Standard forward without masks
+            inp_unf = self.unfold(x)
+            out_unf = inp_unf.transpose(1, 2).matmul(w)
 
         if self.flag == False:
             self.fold = nn.Fold((int(math.sqrt(out_unf.shape[1])), int(math.sqrt(out_unf.shape[1]))), (1,1))
