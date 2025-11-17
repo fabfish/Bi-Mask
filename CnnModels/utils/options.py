@@ -32,6 +32,14 @@ parser.add_argument(
 )
 
 parser.add_argument(
+    '--dataset',
+    type=str,
+    choices=['cifar10', 'cifar100'],
+    default='cifar10',
+    help='Dataset to use: cifar10 or cifar100 (default: cifar10)'
+)
+
+parser.add_argument(
     '--job_dir',
     type=str,
     default='experiments/Imagenet',
