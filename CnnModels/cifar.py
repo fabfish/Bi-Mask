@@ -11,7 +11,7 @@ import sys
 import random
 import numpy as np
 import heapq
-from data import cifar10
+from data import cifar
 from utils.common import *
 from importlib import import_module
 
@@ -64,7 +64,7 @@ else:
 # Data
 print('==> Loading Data..')
 
-loader = cifar10.Data(args)
+loader = cifar.Data(args)
 
 from utils.conv_type import NMConv
 def apply_post_masks(model):
