@@ -26,17 +26,26 @@ except ImportError:
     WANDB_AVAILABLE = False
     print("Warning: wandb not available. Install with: pip install wandb")
 
-visible_gpus_str = ','.join(str(i) for i in args.gpus)
-os.environ['CUDA_VISIBLE_DEVICES'] = visible_gpus_str
+# --- 修复：尊重 launcher（run.sh）设置的 CUDA_VISIBLE_DEVICES ---
+# 如果外部已经通过环境变量设置了 CUDA_VISIBLE_DEVICES，优先使用它；
+# 否则使用命令行 args.gpus 来设置。
+if 'CUDA_VISIBLE_DEVICES' in os.environ and os.environ['CUDA_VISIBLE_DEVICES'].strip() != '':
+    visible_gpus_str = os.environ['CUDA_VISIBLE_DEVICES']
+else:
+    visible_gpus_str = ','.join(str(i) for i in args.gpus)
+    os.environ['CUDA_VISIBLE_DEVICES'] = visible_gpus_str
+
 os.environ["WANDB_API_KEY"] = 'b0905a7c1edbfb53372e1fc0ce0717dfe5477326'
 
-# After setting CUDA_VISIBLE_DEVICES, remap GPU indices
+# 根据最终的 CUDA_VISIBLE_DEVICES 列表，重映射 args.gpus 为进程内可见设备索引 0..N-1
+visible_list = [s for s in visible_gpus_str.split(',') if s != '']
 original_gpus = args.gpus.copy()
-args.gpus = [i for i in range(len(args.gpus))]
-# usage: --gpus 0 1 2 3
-print(f"Original GPU selection: {original_gpus}")
-print(f"Remapped GPU indices: {args.gpus}")
-print(f"CUDA_VISIBLE_DEVICES: {visible_gpus_str}")
+args.gpus = [i for i in range(len(visible_list))]
+
+# debug 输出，便于确认分配
+print(f"Original GPU selection (CLI): {original_gpus}")
+print(f"Effective CUDA_VISIBLE_DEVICES: {visible_gpus_str}")
+print(f"Remapped GPU indices for PyTorch: {args.gpus}")
 
 checkpoint = utils.checkpoint(args)
 now = datetime.datetime.now().strftime('%Y-%m-%d-%H:%M:%S')
