@@ -3,7 +3,7 @@
 
 echo "Training ResNet-32 on CIFAR-100 with m1 mode and wandb..."
 CUDA_VISIBLE_DEVICES=0 python3 cifar.py \
-    --arch resnet32_cifar100 \
+    --arch vgg19_cifar100 \
     --dataset cifar100 \
     --lr 0.1 \
     --gpus 0 \
@@ -11,9 +11,9 @@ CUDA_VISIBLE_DEVICES=0 python3 cifar.py \
     --data_path /home/yzy/GitHub/Bi-Mask/datasets \
     --label_smoothing 0.1 \
     --num_epochs 300 \
-    --job_dir experiments/cifar100_resnet32_m1 \
+    --job_dir experiments/cifar100_vgg19_m1 \
     --mask_mode m1 \
-    --wandb_project bimask_cnn_resnet32_cifar100 \
-    --nm_layers layer3 \
+    --wandb_project bimask_cnn_vgg19_cifar100_test \
+    --nm_layers "features.30,features.33,features.36,features.40,features.43,features.46,features.49" \
     --seed 42 \
-    --wandb_name resnet32_cifar100_m1
+    --wandb_name vgg19_cifar100_m1
