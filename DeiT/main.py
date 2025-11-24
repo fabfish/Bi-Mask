@@ -202,6 +202,14 @@ def get_args_parser():
     parser.add_argument('--random_mask_ratio', default=0.5, type=float,
                         help='Ratio of elements to keep in random mask (default: 0.5 for 50%)')
 
+    # NM mask parameters (for ViT NMConv layers)
+    parser.add_argument('--mask_mode', default='m1', type=str, choices=['m1','m2','m3','m4','m5'],
+                        help='mask mode to use for NMConv layers')
+    parser.add_argument('--N', default=2, type=int, help='N in N:M sparsity')
+    parser.add_argument('--M', default=4, type=int, help='M in N:M sparsity')
+    parser.add_argument('--nm_layers', default='', type=str,
+                        help='Comma-separated list of module name patterns to enable N:M masks on. Empty or "all" = enable on all NMConv layers. Supports substring match or fnmatch patterns (e.g. "blocks.*.mlp").')
+
     return parser
 
 
@@ -328,6 +336,44 @@ def main(args):
         model.load_state_dict(checkpoint_model, strict=False)
 
     model.to(device)
+
+    # Configure NMConv layers for selected mask mode and parameters (m1..m5)
+    try:
+        from timm.models.vision_transformer import NMConv
+        nm_count = 0
+        # parse nm_layers selection: comma-separated patterns
+        import fnmatch
+        selected_patterns = [p.strip() for p in args.nm_layers.split(',') if p.strip() != ''] if args.nm_layers else []
+        enable_all = (len(selected_patterns) == 0) or (len(selected_patterns) == 1 and selected_patterns[0].lower() in ['all', '*'])
+        for name, module in model.named_modules():
+            if isinstance(module, NMConv):
+                nm_count += 1
+                # set attributes expected by engine and conv implementations
+                module.mask_mode = args.mask_mode
+                module.N = args.N
+                module.M = args.M
+                module.use_random_mask = args.use_random_mask
+                module.random_mask_ratio = args.random_mask_ratio
+                # per-layer enable flag
+                if enable_all:
+                    module.mask_enabled = True
+                else:
+                    # match any provided pattern against module name
+                    matched = False
+                    for pat in selected_patterns:
+                        try:
+                            if fnmatch.fnmatch(name, pat) or pat in name:
+                                matched = True
+                                break
+                        except Exception:
+                            # fallback substring match
+                            if pat in name:
+                                matched = True
+                                break
+                    module.mask_enabled = matched
+        print(f"Configured {nm_count} NMConv layers with mask_mode={args.mask_mode}, N={args.N}, M={args.M}, use_random_mask={args.use_random_mask}, random_mask_ratio={args.random_mask_ratio}")
+    except Exception as e:
+        print("Warning: could not configure NMConv layers:", e)
 
     model_ema = None
     if args.model_ema:

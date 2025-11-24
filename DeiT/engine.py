@@ -23,9 +23,33 @@ def apply_post_masks(model):
     """
     for m in model.modules():
         if isinstance(m, NMConv):
-            # 如果你想在所有层都做 post 投影，去掉 mask_mode 条件
-            if getattr(m, 'mask_mode', None) == 'm4':
-                m.post_mask_apply()
+            # respect per-layer enable flag if present
+            if getattr(m, 'mask_enabled', True):
+                if getattr(m, 'mask_mode', None) == 'm4' or getattr(m, 'mask_mode', None) == 'm4_post':
+                    # m4: apply after optimizer.step
+                    if hasattr(m, 'post_mask_apply'):
+                        m.post_mask_apply()
+
+def apply_pre_masks(model):
+    """
+    在 backward 之前应用的 mask（用于 m3 或其他需要在反向传播前修改权重的模式）
+    """
+    for m in model.modules():
+        if isinstance(m, NMConv):
+            if getattr(m, 'mask_enabled', True) and getattr(m, 'mask_mode', None) == 'm3':
+                # m3: apply pre mask projection before backward()
+                if hasattr(m, 'pre_mask_apply'):
+                    m.pre_mask_apply()
+
+def apply_grad_masks(model):
+    """
+    在 optimizer.step() 之前应用梯度掩码（用于 m5）
+    """
+    for m in model.modules():
+        if isinstance(m, NMConv):
+            if getattr(m, 'mask_enabled', True) and getattr(m, 'mask_mode', None) == 'm5':
+                if hasattr(m, 'grad_mask_apply'):
+                    m.grad_mask_apply()
                 
 def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
                     data_loader: Iterable, optimizer: torch.optim.Optimizer,
@@ -57,13 +81,18 @@ def train_one_epoch(model: torch.nn.Module, criterion: DistillationLoss,
 
         optimizer.zero_grad()
 
-        # this attribute is added by timm on one optimizer (adahessian)
-        #is_second_order = hasattr(optimizer, 'is_second_order') and optimizer.is_second_order
-        #loss_scaler(loss, optimizer, clip_grad=max_norm,
-        #            parameters=model.parameters(), create_graph=is_second_order)
+        # 如果当前模型层有需要在 backward 前应用的投影（例如 m3），先应用
+        apply_pre_masks(model)
+
+        # backward
         loss.backward()
+
+        # 如果需要在 optimizer.step() 前对梯度/权重进行掩码（例如 m5），应用它
+        apply_grad_masks(model)
+
         optimizer.step()
 
+        # 在 step 后应用 post-mask（例如 m4）
         apply_post_masks(model)
 
         torch.cuda.synchronize()
